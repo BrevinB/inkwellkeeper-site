@@ -397,7 +397,7 @@
             const img = document.createElement("img");
             img.src = card.imageUrl;
             img.alt = card.name;
-            img.loading = "lazy";
+            img.decoding = "async";
             tile.appendChild(img);
           } else {
             const fallback = document.createElement("div");
