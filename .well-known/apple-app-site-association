@@ -3,7 +3,7 @@
     "details": [
       {
         "appIDs": ["YFXZ6WNN53.co.brevinb.Inkwell-Keeper"],
-        "paths": ["/deck", "/card", "/set"]
+        "paths": ["/deck", "/deck/", "/card", "/card/", "/set", "/set/"]
       }
     ]
   }

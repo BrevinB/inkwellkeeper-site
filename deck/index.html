@@ -3,39 +3,430 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Inkwell Keeper</title>
-  <!-- If the app is installed, iOS opens it directly via the Universal Link and never loads
-       this page. This is the fallback for visitors WITHOUT the app: send them to the App Store. -->
-  <meta http-equiv="refresh" content="0; url=https://apps.apple.com/us/app/ink-well-keeper/id6754206379">
+  <title>Shared Deck — Ink Well Keeper</title>
+  <meta property="og:title" content="A Lorcana deck was shared with you">
+  <meta property="og:description" content="View the full deck list in your browser, or open it in Ink Well Keeper to import it.">
+  <meta property="og:site_name" content="Ink Well Keeper">
+  <!-- Universal Link target for inkwellkeeper.app/deck?code=IWK2:…
+       With the app installed, iOS opens the app directly and never loads this page.
+       In a browser this page decodes the share code locally (LZFSE via /assets/lzfse.js)
+       and renders the deck, with "open in app" / App Store actions. Without a code, or if
+       decoding fails, it degrades to the old App Store fallback. -->
   <style>
-    html, body { height: 100%; margin: 0; }
-    body {
-      background: #151421;
-      color: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 24px;
-      box-sizing: border-box;
+    :root {
+      --bg: #151421;
+      --panel: #1e1c2e;
+      --panel-2: #262438;
+      --gold: #c9a227;
+      --text: #ffffff;
+      --muted: rgba(255, 255, 255, 0.65);
     }
-    h1 { font-size: 1.4rem; font-weight: 600; margin: 0 0 8px; }
-    p { opacity: 0.7; margin: 0 0 24px; }
-    a {
-      color: #fff;
-      background: rgba(255,255,255,0.12);
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 24px 16px 48px;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; }
+    header.site {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .wordmark { font-weight: 700; letter-spacing: 0.02em; text-decoration: none; color: var(--text); }
+    .wordmark span { color: var(--gold); }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 8px; }
+    a.btn {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.12);
       padding: 12px 22px;
       border-radius: 14px;
       text-decoration: none;
       font-weight: 600;
     }
+    a.btn.primary { background: var(--gold); color: var(--bg); }
+
+    .centered {
+      min-height: 60vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .centered p { color: var(--muted); max-width: 26rem; }
+    .centered .actions { justify-content: center; }
+
+    h1.deck-name { font-size: 1.6rem; margin: 0 0 6px; }
+    .deck-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--muted); font-size: 0.95rem; }
+    .badge {
+      background: var(--panel-2);
+      border-radius: 999px;
+      padding: 3px 12px;
+      font-size: 0.85rem;
+    }
+    .ink-pip {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: -2px;
+      border: 1px solid rgba(255,255,255,0.35);
+    }
+    .deck-desc { color: var(--muted); margin: 12px 0 0; max-width: 44rem; }
+
+    .curve {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 84px;
+      margin: 24px 0 4px;
+      padding: 12px;
+      background: var(--panel);
+      border-radius: 14px;
+      max-width: 420px;
+    }
+    .curve .bar {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 4px;
+      height: 100%;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+    .curve .bar i {
+      display: block;
+      width: 100%;
+      background: var(--gold);
+      border-radius: 4px 4px 0 0;
+      min-height: 2px;
+    }
+
+    section.cost-group { margin-top: 28px; }
+    section.cost-group h2 {
+      font-size: 0.95rem;
+      color: var(--muted);
+      font-weight: 600;
+      margin: 0 0 12px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .card-tile { position: relative; }
+    .card-tile img {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+      background: var(--panel);
+      aspect-ratio: 1468 / 2048;
+    }
+    .card-tile .qty {
+      position: absolute;
+      top: 6px; right: 6px;
+      background: var(--bg);
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 0.85rem;
+      border-radius: 999px;
+      padding: 2px 9px;
+    }
+    .card-tile .fallback {
+      width: 100%;
+      aspect-ratio: 1468 / 2048;
+      border-radius: 8px;
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 10px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; text-align: center; }
+    footer a { color: var(--gold); }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
-  <h1>Inkwell Keeper</h1>
-  <p>Opening the App Store…</p>
-  <a href="https://apps.apple.com/us/app/ink-well-keeper/id6754206379">Get Inkwell Keeper</a>
+  <div class="wrap">
+    <header class="site">
+      <a class="wordmark" href="/">Ink<span>Well</span> Keeper</a>
+      <a class="btn" href="https://apps.apple.com/us/app/ink-well-keeper/id6754206379">Get the app</a>
+    </header>
+
+    <!-- Shown while decoding, on failure, or when no code is present -->
+    <div id="status" class="centered">
+      <h1>Ink Well Keeper</h1>
+      <p id="status-message">Loading deck…</p>
+      <div class="actions">
+        <a id="status-open-app" class="btn primary" href="#" hidden>Open in Ink&nbsp;Well&nbsp;Keeper</a>
+        <a class="btn" href="https://apps.apple.com/us/app/ink-well-keeper/id6754206379">Get Ink Well Keeper</a>
+      </div>
+    </div>
+
+    <!-- Deck view -->
+    <main id="deck" hidden>
+      <h1 class="deck-name" id="deck-name"></h1>
+      <div class="deck-meta">
+        <span id="deck-inks"></span>
+        <span class="badge" id="deck-format"></span>
+        <span class="badge" id="deck-archetype" hidden></span>
+        <span id="deck-count"></span>
+      </div>
+      <p class="deck-desc" id="deck-desc" hidden></p>
+      <div class="actions">
+        <a id="open-app" class="btn primary" href="#">Open in Ink&nbsp;Well&nbsp;Keeper</a>
+        <a id="copy-list" class="btn" href="#">Copy deck list</a>
+      </div>
+      <div class="curve" id="curve" aria-label="Ink cost curve"></div>
+      <div id="groups"></div>
+      <footer>
+        Shared from <a href="/">Ink Well Keeper</a> — scan, track, and build Lorcana decks on iPhone and iPad.
+      </footer>
+    </main>
+  </div>
+
+  <script src="/assets/lzfse.js"></script>
+  <script>
+  (async function () {
+    "use strict";
+
+    const APP_STORE = "https://apps.apple.com/us/app/ink-well-keeper/id6754206379";
+    const INK_COLORS = {
+      Amber: "#f4b63e", Amethyst: "#8446a0", Emerald: "#37a344",
+      Ruby: "#d2082f", Sapphire: "#0089c3", Steel: "#9fa9b3"
+    };
+
+    const statusEl = document.getElementById("status");
+    const statusMessage = document.getElementById("status-message");
+    const statusOpenApp = document.getElementById("status-open-app");
+
+    function showFallback(message, deepLink) {
+      statusEl.hidden = false;
+      document.getElementById("deck").hidden = true;
+      statusMessage.textContent = message;
+      if (deepLink) {
+        statusOpenApp.href = deepLink;
+        statusOpenApp.hidden = false;
+      }
+    }
+
+    const rawCode = new URLSearchParams(location.search).get("code");
+    if (!rawCode) {
+      // No deck attached — behave like the old page: straight to the App Store.
+      statusMessage.textContent = "Opening the App Store…";
+      location.href = APP_STORE;
+      return;
+    }
+
+    const code = rawCode.trim();
+    const deepLink = "inkwellkeeper://deck?code=" + encodeURIComponent(code);
+    statusOpenApp.href = deepLink;
+    statusOpenApp.hidden = false;
+
+    function base64ToBytes(str, urlSafe) {
+      let b64 = urlSafe ? str.replace(/-/g, "+").replace(/_/g, "/") : str;
+      while (b64.length % 4 !== 0) b64 += "=";
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    async function decodeShareCode(code) {
+      let compressed;
+      if (code.startsWith("IWK2:")) {
+        compressed = base64ToBytes(code.slice(5), true);
+      } else if (code.startsWith("IWK:")) {
+        compressed = base64ToBytes(code.slice(4), false);
+      } else {
+        throw new Error("Unrecognized code prefix");
+      }
+      const jsonBytes = await LZFSE.decode(compressed);
+      const payload = JSON.parse(new TextDecoder().decode(jsonBytes));
+
+      if (code.startsWith("IWK2:")) {
+        return {
+          name: payload.n,
+          description: payload.d || "",
+          format: payload.f || "",
+          inks: payload.i || [],
+          archetype: payload.a || null,
+          cards: (payload.c || []).map(c => ({ id: c.id, quantity: c.q })),
+          legacyCards: null
+        };
+      }
+      // Legacy IWK: payload carries full card snapshots — render them directly.
+      return {
+        name: payload.name,
+        description: payload.description || "",
+        format: payload.format || "",
+        inks: payload.inkColors || [],
+        archetype: payload.archetype || null,
+        cards: null,
+        legacyCards: (payload.cards || []).map(c => ({
+          name: c.name, cost: c.cost, imageUrl: c.imageUrl, quantity: c.quantity
+        }))
+      };
+    }
+
+    async function loadCardIndex() {
+      const res = await fetch("/assets/card-index.json");
+      if (!res.ok) throw new Error("card index unavailable");
+      return res.json();
+    }
+
+    function resolveCards(deck, index) {
+      if (deck.legacyCards) {
+        return deck.legacyCards.map(c => ({
+          name: c.name, cost: c.cost || 0, imageUrl: c.imageUrl || "", quantity: c.quantity
+        }));
+      }
+      return deck.cards.map(c => {
+        const known = index[c.id];
+        return known
+          ? { name: known.n, cost: known.c, imageUrl: known.img, quantity: c.quantity }
+          : { name: "Card from a newer set", cost: 0, imageUrl: "", quantity: c.quantity, unknown: true };
+      });
+    }
+
+    function render(deck, cards) {
+      document.title = deck.name + " — Ink Well Keeper";
+      document.getElementById("deck-name").textContent = deck.name;
+      document.getElementById("deck-format").textContent = deck.format || "Deck";
+
+      const archetypeEl = document.getElementById("deck-archetype");
+      if (deck.archetype) {
+        archetypeEl.textContent = deck.archetype;
+        archetypeEl.hidden = false;
+      }
+
+      const total = cards.reduce((sum, c) => sum + c.quantity, 0);
+      document.getElementById("deck-count").textContent = total + " cards";
+
+      const inksEl = document.getElementById("deck-inks");
+      for (const ink of deck.inks) {
+        const pip = document.createElement("span");
+        pip.className = "ink-pip";
+        pip.style.background = INK_COLORS[ink] || "#666";
+        pip.title = ink;
+        inksEl.appendChild(pip);
+      }
+
+      if (deck.description) {
+        const desc = document.getElementById("deck-desc");
+        desc.textContent = deck.description;
+        desc.hidden = false;
+      }
+
+      document.getElementById("open-app").href = deepLink;
+
+      // Copy the community-format text list ("4 Elsa - Snow Queen" per line).
+      const copyBtn = document.getElementById("copy-list");
+      copyBtn.addEventListener("click", async (event) => {
+        event.preventDefault();
+        const list = cards
+          .slice()
+          .sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name))
+          .map(c => c.quantity + " " + c.name)
+          .join("\n");
+        try {
+          await navigator.clipboard.writeText(list);
+          copyBtn.textContent = "Copied!";
+          setTimeout(() => { copyBtn.textContent = "Copy deck list"; }, 1600);
+        } catch {
+          copyBtn.textContent = "Copy failed";
+        }
+      });
+
+      // Cost curve (7+ bucketed together, like the app).
+      const buckets = new Array(8).fill(0);
+      for (const c of cards) buckets[Math.min(Math.max(c.cost, 0), 7)] += c.quantity;
+      const max = Math.max(...buckets, 1);
+      const curve = document.getElementById("curve");
+      buckets.forEach((count, cost) => {
+        if (cost === 0 && count === 0) return; // no zero-cost cards — skip the empty bucket
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        const fill = document.createElement("i");
+        fill.style.height = Math.round((count / max) * 100) + "%";
+        bar.appendChild(fill);
+        bar.appendChild(document.createTextNode(cost === 7 ? "7+" : String(cost)));
+        bar.title = count + " cards";
+        curve.appendChild(bar);
+      });
+
+      // Card grid grouped by cost.
+      const groupsEl = document.getElementById("groups");
+      const byCost = new Map();
+      for (const c of cards) {
+        const key = Math.min(c.cost, 7);
+        if (!byCost.has(key)) byCost.set(key, []);
+        byCost.get(key).push(c);
+      }
+      for (const cost of [...byCost.keys()].sort((a, b) => a - b)) {
+        const section = document.createElement("section");
+        section.className = "cost-group";
+        const heading = document.createElement("h2");
+        heading.textContent = (cost === 7 ? "Cost 7+" : "Cost " + cost);
+        section.appendChild(heading);
+        const grid = document.createElement("div");
+        grid.className = "grid";
+        for (const card of byCost.get(cost).sort((a, b) => a.name.localeCompare(b.name))) {
+          const tile = document.createElement("div");
+          tile.className = "card-tile";
+          if (card.imageUrl) {
+            const img = document.createElement("img");
+            img.src = card.imageUrl;
+            img.alt = card.name;
+            img.loading = "lazy";
+            tile.appendChild(img);
+          } else {
+            const fallback = document.createElement("div");
+            fallback.className = "fallback";
+            fallback.textContent = card.name;
+            tile.appendChild(fallback);
+          }
+          const qty = document.createElement("span");
+          qty.className = "qty";
+          qty.textContent = "×" + card.quantity;
+          tile.appendChild(qty);
+          grid.appendChild(tile);
+        }
+        section.appendChild(grid);
+        groupsEl.appendChild(section);
+      }
+
+      statusEl.hidden = true;
+      document.getElementById("deck").hidden = false;
+    }
+
+    try {
+      const deck = await decodeShareCode(code);
+      const index = deck.legacyCards ? {} : await loadCardIndex();
+      render(deck, resolveCards(deck, index));
+    } catch (error) {
+      console.error("Deck decode failed:", error);
+      showFallback(
+        "A deck was shared with you, but it couldn't be shown in the browser. " +
+        "Open it in Ink Well Keeper instead — or grab the app from the App Store.",
+        deepLink
+      );
+    }
+  })();
+  </script>
 </body>
 </html>
