@@ -304,6 +304,11 @@
     }
 
     function render(deck, cards) {
+      // Reveal the deck before inserting lazy images: Chrome never re-evaluates
+      // loading="lazy" images whose src was assigned inside a hidden subtree.
+      statusEl.hidden = true;
+      document.getElementById("deck").hidden = false;
+
       document.title = deck.name + " — Ink Well Keeper";
       document.getElementById("deck-name").textContent = deck.name;
       document.getElementById("deck-format").textContent = deck.format || "Deck";
@@ -409,9 +414,6 @@
         section.appendChild(grid);
         groupsEl.appendChild(section);
       }
-
-      statusEl.hidden = true;
-      document.getElementById("deck").hidden = false;
     }
 
     try {
