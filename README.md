@@ -11,9 +11,30 @@ scanned QR **open the app** when installed and **go to the App Store** when not.
 | `.well-known/apple-app-site-association` | AASA file iOS downloads to verify the app may open links on this domain. No file extension. |
 | `.nojekyll` | Forces GitHub Pages to serve dotfolders like `.well-known/`. Without it, Jekyll hides the AASA → 404. |
 | `404.html` | Catch-all fallback: any path without the app (e.g. `/card?id=…`) redirects to the App Store. Bulletproofs against a missing per-path page. |
-| `index.html`, `deck/`, `card/`, `set/` | Landing + per-path fallback pages (redirect to the App Store). |
+| `index.html`, `card/`, `set/` | Landing + per-path fallback pages (redirect to the App Store). |
+| `deck/` | **Web deck viewer**: decodes `?code=IWK2:…` share codes client-side and renders the deck (card art, cost curve, copy-as-text). Falls back to open-in-app / App Store when there's no code or decoding fails. |
+| `assets/lzfse.js` | Apple LZFSE decoder — reference [lzfse](https://github.com/lzfse/lzfse) (BSD-3) compiled to single-file WASM, decode-only, plus a small `LZFSE.decode()` wrapper. |
+| `assets/card-index.json` | Card id → name/cost/ink/image lookup the viewer resolves codes against. |
 
 AASA `appIDs` = `<TeamID>.<BundleID>` = `YFXZ6WNN53.co.brevinb.Inkwell-Keeper`.
+
+## Regenerating assets
+
+- **`card-index.json`** — rerun after the app gains a new set, then commit here:
+  ```sh
+  python3 "…/Inkwell Keeper/Scripts/generate_web_card_index.py"
+  ```
+- **`lzfse.js`** — only if the decoder ever needs rebuilding:
+  ```sh
+  git clone --depth 1 https://github.com/lzfse/lzfse.git
+  docker run --rm -v "$PWD/lzfse:/src" -w /src emscripten/emsdk:3.1.74 emcc -O2 \
+    src/lzfse_decode.c src/lzfse_decode_base.c src/lzfse_fse.c src/lzvn_decode_base.c \
+    -Isrc --no-entry -sMODULARIZE=1 -sEXPORT_NAME=createLzfseModule -sSINGLE_FILE=1 \
+    -sEXPORTED_FUNCTIONS=_lzfse_decode_buffer,_malloc,_free \
+    -sEXPORTED_RUNTIME_METHODS=HEAPU8 -sALLOW_MEMORY_GROWTH=1 -sENVIRONMENT=web,node \
+    -o lzfse_core.js
+  cat lzfse_core.js <wrapper block at the end of assets/lzfse.js> > assets/lzfse.js
+  ```
 
 ## Deploy
 
