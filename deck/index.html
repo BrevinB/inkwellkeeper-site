@@ -184,6 +184,7 @@
         <span id="deck-inks"></span>
         <span class="badge" id="deck-format"></span>
         <span class="badge" id="deck-archetype" hidden></span>
+        <span class="badge" id="deck-leader" hidden></span>
         <span id="deck-count"></span>
       </div>
       <p class="deck-desc" id="deck-desc" hidden></p>
@@ -265,6 +266,7 @@
           format: payload.f || "",
           inks: payload.i || [],
           archetype: payload.a || null,
+          coconutLeader: payload.l || null,
           cards: (payload.c || []).map(c => ({ id: c.id, quantity: c.q })),
           legacyCards: null
         };
@@ -317,6 +319,13 @@
       if (deck.archetype) {
         archetypeEl.textContent = deck.archetype;
         archetypeEl.hidden = false;
+      }
+
+      // Format Coconut leader badge
+      if (deck.coconutLeader) {
+        const leaderEl = document.getElementById("deck-leader");
+        leaderEl.textContent = "\u{1F451} " + deck.coconutLeader;
+        leaderEl.hidden = false;
       }
 
       const total = cards.reduce((sum, c) => sum + c.quantity, 0);
